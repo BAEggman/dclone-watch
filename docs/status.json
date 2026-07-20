@@ -1,14 +1,14 @@
 {
-  "server": "아시아 / 스탠다드(논래더) / 소프트코어 / LoD",
+  "server": "아시아 / 스탠다드(논래더) / 소프트코어 / RotW",
   "region": "아시아",
   "ladder": "스탠다드(논래더)",
   "core": "소프트코어",
-  "ver": "LoD",
-  "progress": 3,
-  "message_en": "Terror begins to form within Sanctuary",
-  "message_kr": "공포가 성역 안에서 형체를 갖추기 시작합니다",
-  "reported_ts": 1784445432,
-  "checked": "2026-07-21T00:12:32+09:00",
+  "ver": "RotW",
+  "progress": 2,
+  "message_en": "Terror approaches Sanctuary",
+  "message_kr": "공포가 성역으로 접근합니다",
+  "reported_ts": 1784365371,
+  "checked": "2026-07-21T00:29:05+09:00",
   "source": "diablo2.io",
   "alert_min_stage": 3
 }
