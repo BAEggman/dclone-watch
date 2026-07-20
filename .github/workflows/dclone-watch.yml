@@ -32,7 +32,7 @@ jobs:
           REGION: "3"            # 1=아메리카 2=유럽 3=아시아
           LADDER: "2"            # 1=래더 2=스탠다드(논래더)
           HC: "2"                # 1=하드코어 2=소프트코어
-          VER: "1"               # 1=LoD 2=RotW(워록의 지배 확장팩)
+          VER: "2"               # 1=LoD 2=RotW(워록의 지배 확장팩)
           ALERT_MIN_STAGE: "3"   # 이 단계(3/6)부터 메일 발송
           NOTIFY_RESET: "1"      # 리셋 감지 메일 (끄려면 0)
           # ── 이메일 (저장소 Settings → Secrets 에 등록) ────
