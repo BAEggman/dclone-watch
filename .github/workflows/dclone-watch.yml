@@ -1,0 +1,60 @@
+name: dclone-watch
+
+on:
+  schedule:
+    # 매시 7분에 실행 (UTC 기준이지만 매시간이므로 한국시간과 무관)
+    # 더 자주 확인하려면 "*/15 * * * *" (15분마다) 등으로 변경
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_test:
+        description: "테스트 이메일 발송 (1 입력 시 발송)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dclone-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 우버디아 진행도 확인
+        env:
+          # ── 감시할 서버 (필요 시 여기서 수정) ─────────────
+          REGION: "3"            # 1=아메리카 2=유럽 3=아시아
+          LADDER: "2"            # 1=래더 2=스탠다드(논래더)
+          HC: "2"                # 1=하드코어 2=소프트코어
+          VER: "1"               # 1=LoD 2=RotW(워록의 지배 확장팩)
+          ALERT_MIN_STAGE: "3"   # 이 단계(3/6)부터 메일 발송
+          NOTIFY_RESET: "1"      # 리셋 감지 메일 (끄려면 0)
+          # ── 이메일 (저장소 Settings → Secrets 에 등록) ────
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          # ── 선택 사항 ────────────────────────────────────
+          D2RW_TOKEN: ${{ secrets.D2RW_TOKEN }}        # 백업 데이터 소스
+          D2RW_CONTACT: ${{ secrets.D2RW_CONTACT }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          FORCE_TEST: ${{ github.event.inputs.force_test }}
+        run: python3 dclone_watch.py
+
+      - name: 상태 파일 커밋 (state + 페이지 데이터)
+        run: |
+          git config user.name "dclone-watch-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "update: dclone status"
+            git pull --rebase origin "${GITHUB_REF_NAME}" || true
+            git push
+          fi
