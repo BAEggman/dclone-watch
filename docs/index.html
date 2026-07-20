@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우버 디아블로 진행도</title>
+<meta name="description" content="디아블로 2 레저렉티드 우버 디아블로(디아 클론) 진행도 상태 페이지">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --abyss:#0b0709; --panel:#171015; --panel2:#1d1419; --line:#33222b;
+    --ember:#e0552f; --ember2:#ff8a3d; --blood:#8f1d1d; --gold:#c8a35a;
+    --bone:#e9ddc7; --ash:#98897a; --warn:#d9a441;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(900px 480px at 50% -160px, rgba(143,29,29,.38), transparent 70%),
+      radial-gradient(1400px 800px at 50% 120%, rgba(200,163,90,.05), transparent 60%),
+      var(--abyss);
+    color:var(--bone);
+    font-family:"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",-apple-system,sans-serif;
+    min-height:100vh; display:flex; justify-content:center;
+    padding:40px 18px 56px;
+  }
+  .wrap{width:100%; max-width:600px}
+  .eyebrow{
+    font-family:Cinzel,serif; font-weight:600; letter-spacing:.42em; text-indent:.42em;
+    color:var(--gold); font-size:11px; text-align:center; opacity:.9;
+  }
+  h1{
+    margin:10px 0 6px; text-align:center; font-size:24px; font-weight:800;
+    letter-spacing:.06em; color:var(--bone);
+  }
+  .chip{
+    display:block; width:fit-content; margin:0 auto; padding:5px 14px;
+    border:1px solid var(--line); border-radius:2px; background:rgba(23,16,21,.7);
+    color:var(--ash); font-size:12.5px; letter-spacing:.04em;
+  }
+  /* ── 시그니처: 공포 게이지 ── */
+  .hero{margin:34px 0 8px; text-align:center}
+  .num{
+    font-family:Cinzel,serif; font-weight:800; line-height:1;
+    font-size:clamp(84px, 24vw, 132px); color:var(--gold);
+    text-shadow:0 0 22px rgba(200,163,90,.22);
+    transition:color .6s, text-shadow .6s;
+  }
+  .num .of{font-size:.32em; color:var(--ash); font-weight:600; margin-left:.08em}
+  body.walking .num{
+    color:var(--ember2);
+    text-shadow:0 0 14px rgba(255,138,61,.55), 0 0 44px rgba(224,85,47,.35);
+  }
+  .gauge{display:flex; gap:7px; margin:22px 2px 6px; height:30px}
+  .seg{
+    flex:1; transform:skewX(-14deg);
+    background:#150e13; border:1px solid var(--line); border-radius:2px;
+    position:relative; overflow:hidden;
+  }
+  .seg::after{
+    content:""; position:absolute; inset:0; opacity:0; transform:translateX(-100%);
+    background:linear-gradient(90deg, var(--blood), var(--ember) 55%, var(--ember2));
+  }
+  .seg.lit::after{opacity:1; transform:translateX(0);
+    transition:transform .5s ease-out var(--d,0s), opacity .2s var(--d,0s)}
+  .seg.now::after{animation:breathe 2.6s ease-in-out infinite}
+  .seg.now{box-shadow:0 0 14px rgba(224,85,47,.45)}
+  body.walking .seg.lit{box-shadow:0 0 12px rgba(224,85,47,.5)}
+  @keyframes breathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.55)}}
+  .gauge-labels{display:flex; gap:7px; margin:0 2px}
+  .gauge-labels span{flex:1; text-align:center; font-size:11px; color:var(--ash); opacity:.7}
+  /* ── 카드 ── */
+  .card{
+    margin-top:22px; padding:18px 20px; background:var(--panel);
+    border:1px solid var(--line); border-radius:3px;
+  }
+  body.walking .card.msg{border-color:var(--blood); background:#1c0f10}
+  .msg .en{
+    font-family:Cinzel,serif; font-weight:600; font-size:16px; letter-spacing:.04em;
+    color:var(--bone); text-align:center;
+  }
+  .msg .kr{margin-top:7px; text-align:center; color:var(--ash); font-size:14px}
+  .meta{margin-top:14px; padding:4px 20px 10px}
+  .meta .row{
+    display:flex; justify-content:space-between; gap:14px; padding:9px 0;
+    border-bottom:1px solid rgba(51,34,43,.55); font-size:13.5px;
+  }
+  .meta .row:last-child{border-bottom:0}
+  .meta .k{color:var(--ash); flex-shrink:0}
+  .meta .v{color:var(--bone); text-align:right; font-variant-numeric:tabular-nums}
+  .banner{
+    display:none; margin-top:14px; padding:12px 16px; border-radius:3px;
+    border:1px solid rgba(217,164,65,.4); background:rgba(217,164,65,.08);
+    color:var(--warn); font-size:13px; line-height:1.55;
+  }
+  .banner.on{display:block}
+  /* ── 최근 변동 ── */
+  .h2{
+    margin:30px 0 10px; font-size:13px; letter-spacing:.24em; text-indent:.24em;
+    color:var(--gold); text-align:center; font-weight:700;
+  }
+  .hist{padding:6px 20px}
+  .hist .row{
+    display:flex; justify-content:space-between; gap:12px; padding:9px 0;
+    border-bottom:1px solid rgba(51,34,43,.55); font-size:13.5px;
+  }
+  .hist .row:last-child{border-bottom:0}
+  .hist .t{color:var(--ash); font-variant-numeric:tabular-nums}
+  .hist .d{color:var(--bone)}
+  .hist .d b{color:var(--ember2); font-weight:700}
+  .empty{color:var(--ash); text-align:center; padding:14px 0; font-size:13.5px}
+  /* ── 상태/푸터 ── */
+  .note{margin-top:16px; text-align:center; color:var(--ash); font-size:12px; line-height:1.7}
+  .note button{
+    margin-left:8px; padding:3px 12px; font-size:12px; cursor:pointer;
+    background:transparent; color:var(--gold); border:1px solid var(--line); border-radius:2px;
+  }
+  .note button:hover{border-color:var(--gold)}
+  .note button:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+  footer{
+    margin-top:26px; padding-top:16px; border-top:1px solid var(--line);
+    text-align:center; color:var(--ash); font-size:12px; line-height:1.8;
+  }
+  footer a{color:var(--gold); text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .state{margin-top:40px; text-align:center; color:var(--ash); font-size:14px; line-height:1.8}
+  .state a{color:var(--gold)}
+  @media (prefers-reduced-motion: reduce){
+    .seg.lit::after{transition:none}
+    .seg.now::after{animation:none}
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="eyebrow">DIABLO CLONE TRACKER</div>
+  <h1>우버 디아블로 진행도</h1>
+  <span class="chip" id="server">불러오는 중…</span>
+
+  <div id="app" hidden>
+    <div class="hero"><div class="num"><span id="cur">–</span><span class="of">/6</span></div></div>
+    <div class="gauge" id="gauge" role="img" aria-label="공포 게이지"></div>
+    <div class="gauge-labels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+
+    <div class="card msg">
+      <div class="en" id="msgEn">–</div>
+      <div class="kr" id="msgKr">–</div>
+    </div>
+
+    <div class="banner" id="stale"></div>
+
+    <div class="card meta">
+      <div class="row"><span class="k">마지막 제보</span><span class="v" id="reported">–</span></div>
+      <div class="row"><span class="k">마지막 확인</span><span class="v" id="checked">–</span></div>
+      <div class="row"><span class="k">데이터 출처</span><span class="v" id="source">–</span></div>
+      <div class="row"><span class="k">이메일 알림 기준</span><span class="v" id="alert">–</span></div>
+    </div>
+
+    <div class="h2">최근 변동</div>
+    <div class="card hist" id="hist"><div class="empty">기록이 없습니다</div></div>
+
+    <div class="note">
+      표시는 60초마다 새로고침됩니다 (<span id="cd">60</span>초)
+      · 데이터 자체는 GitHub Actions가 주기적으로 갱신합니다
+      <button id="refresh" type="button">지금 새로고침</button>
+    </div>
+  </div>
+
+  <div class="state" id="state">불러오는 중…</div>
+
+  <footer>
+    소환 팁 — 5/6이 되면 헬 난이도 게임을 만들어 안에서 대기하세요. 6/6 발동 순간 게임 안에 있어야 합니다.<br>
+    실시간 제보 현황: <a href="https://diablo2.io/dclonetracker.php" target="_blank" rel="noopener">diablo2.io 트래커</a><br>
+    Data courtesy of <a href="https://diablo2.io/dclonetracker.php" target="_blank" rel="noopener">diablo2.io</a>
+    <span id="d2rwCredit" hidden> · backup by <a href="https://d2runewizard.com/diablo-clone-tracker" target="_blank" rel="noopener">d2runewizard.com</a></span>
+  </footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const KST = { timeZone:'Asia/Seoul' };
+const fmtDT = v => new Intl.DateTimeFormat('ko-KR',{...KST, month:'2-digit', day:'2-digit',
+  hour:'2-digit', minute:'2-digit', hour12:false}).format(v) + ' KST';
+
+function ago(ms){
+  const m = Math.max(0, Math.floor((Date.now()-ms)/60000));
+  if(m < 60) return m + '분 전';
+  if(m < 2880) return Math.floor(m/60) + '시간 전';
+  return Math.floor(m/1440) + '일 전';
+}
+
+function renderGauge(p){
+  const g = $('gauge'); g.innerHTML = '';
+  for(let i=1;i<=6;i++){
+    const s = document.createElement('div');
+    s.className = 'seg' + (i<=p ? ' lit':'') + (i===p ? ' now':'');
+    s.style.setProperty('--d', ((i-1)*0.09)+'s');
+    g.appendChild(s);
+  }
+}
+
+function render(st, hist){
+  document.body.classList.toggle('walking', st.progress >= 6);
+  $('server').textContent = st.server || '';
+  $('cur').textContent = st.progress;
+  renderGauge(st.progress);
+  $('msgEn').textContent = st.progress >= 6 ? '🔥 ' + st.message_en : st.message_en;
+  $('msgKr').textContent = st.message_kr;
+  $('source').textContent = st.source || '–';
+  $('alert').textContent = (st.alert_min_stage || 3) + '/6 이상 상승 시';
+  $('checked').textContent = st.checked ? fmtDT(new Date(st.checked)) + ' (' + ago(Date.parse(st.checked)) + ')' : '–';
+  if(st.reported_ts){
+    const ms = st.reported_ts * 1000;
+    $('reported').textContent = fmtDT(new Date(ms)) + ' (' + ago(ms) + ')';
+    const hrs = (Date.now()-ms)/3600000;
+    if(hrs > 72){
+      $('stale').textContent = '⚠ 마지막 제보가 ' + Math.floor(hrs/24) +
+        '일 전입니다. 제보가 뜸한 서버라 실제 진행도와 다를 수 있어요. 게임 내 /uberdiablo 명령으로 확인하세요.';
+      $('stale').classList.add('on');
+    } else $('stale').classList.remove('on');
+  } else $('reported').textContent = '정보 없음';
+  if((st.source||'').includes('runewizard')) $('d2rwCredit').hidden = false;
+
+  const h = $('hist');
+  if(Array.isArray(hist) && hist.length){
+    h.innerHTML = hist.slice(0,12).map(e =>
+      '<div class="row"><span class="t">' + fmtDT(new Date(e.at)) + '</span>' +
+      '<span class="d">' + (e.from ?? '–') + '/6 → <b>' + e.to + '/6</b></span></div>'
+    ).join('');
+  } else h.innerHTML = '<div class="empty">기록이 없습니다</div>';
+
+  document.title = '(' + st.progress + '/6) 우버 디아블로 진행도';
+  $('app').hidden = false; $('state').hidden = true;
+}
+
+async function load(){
+  try{
+    const r = await fetch('./status.json?_=' + Date.now(), {cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    const st = await r.json();
+    let hist = [];
+    try{
+      const h = await fetch('./history.json?_=' + Date.now(), {cache:'no-store'});
+      if(h.ok) hist = await h.json();
+    }catch(e){}
+    render(st, hist);
+  }catch(e){
+    $('server').textContent = '데이터 대기 중';
+    $('state').innerHTML = '아직 표시할 데이터가 없습니다.<br>' +
+      '저장소의 <b>Actions</b> 탭에서 dclone-watch 워크플로를 한 번 실행하면 채워집니다.';
+    $('state').hidden = false;
+  }
+}
+
+let cd = 60;
+setInterval(() => {
+  cd -= 1;
+  if(cd <= 0){ cd = 60; load(); }
+  const el = $('cd'); if(el) el.textContent = cd;
+}, 1000);
+$('refresh').addEventListener('click', () => { cd = 60; load(); });
+load();
+</script>
+</body>
+</html>
