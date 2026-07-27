@@ -2,9 +2,9 @@ name: dclone-watch
 
 on:
   schedule:
-    # 매시 7분에 실행 (UTC 기준이지만 매시간이므로 한국시간과 무관)
-    # 더 자주 확인하려면 "*/15 * * * *" (15분마다) 등으로 변경
-    - cron: "7 * * * *"
+    # 5분마다 실행 (GitHub 사정으로 몇 분씩 지연될 수 있음)
+    # 주의: GitHub Actions는 5분보다 짧은 주기를 지원하지 않음
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       force_test:
@@ -32,9 +32,9 @@ jobs:
           REGION: "3"            # 1=아메리카 2=유럽 3=아시아
           LADDER: "2"            # 1=래더 2=스탠다드(논래더)
           HC: "2"                # 1=하드코어 2=소프트코어
-          VER: "2"               # 1=LoD 2=RotW(워록의 지배 확장팩)
-          ALERT_MIN_STAGE: "3"   # 이 단계(3/6)부터 메일 발송
-          NOTIFY_RESET: "1"      # 리셋 감지 메일 (끄려면 0)
+          VER: "2"               # 1=LoD 2=RotW(워록의 지배 확장팩) — 기존 운영값(RotW) 유지
+          ALERT_MIN_STAGE: "3"   # 이 단계(3/6)부터 메일 발송 — 기존 운영값 유지
+          NOTIFY_RESET: "1"      # 진행도 하락(소환 추정) 메일 (끄려면 0)
           # ── 이메일 (저장소 Settings → Secrets 에 등록) ────
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}

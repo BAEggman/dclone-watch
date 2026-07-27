@@ -155,6 +155,7 @@
       <div class="row"><span class="k">마지막 제보</span><span class="v" id="reported">–</span></div>
       <div class="row"><span class="k">마지막 확인</span><span class="v" id="checked">–</span></div>
       <div class="row"><span class="k">데이터 출처</span><span class="v" id="source">–</span></div>
+      <div class="row" id="srcRow" hidden><span class="k">출처별 진행도</span><span class="v" id="sources">–</span></div>
       <div class="row"><span class="k">이메일 알림 기준</span><span class="v" id="alert">–</span></div>
     </div>
 
@@ -209,7 +210,11 @@ function render(st, hist){
   $('msgEn').textContent = st.progress >= 6 ? '🔥 ' + st.message_en : st.message_en;
   $('msgKr').textContent = st.message_kr;
   $('source').textContent = st.source || '–';
-  $('alert').textContent = (st.alert_min_stage || 3) + '/6 이상 상승 시';
+  const srcs = st.sources && Object.keys(st.sources).length
+    ? Object.entries(st.sources).map(([k,v]) => k + ' ' + v + '/6').join(' · ') : '';
+  $('srcRow').hidden = !srcs;
+  if(srcs) $('sources').textContent = srcs;
+  $('alert').textContent = (st.alert_min_stage || 2) + '/6 이상 상승 시';
   $('checked').textContent = st.checked ? fmtDT(new Date(st.checked)) + ' (' + ago(Date.parse(st.checked)) + ')' : '–';
   if(st.reported_ts){
     const ms = st.reported_ts * 1000;
@@ -217,7 +222,7 @@ function render(st, hist){
     const hrs = (Date.now()-ms)/3600000;
     if(hrs > 72){
       $('stale').textContent = '⚠ 마지막 제보가 ' + Math.floor(hrs/24) +
-        '일 전입니다. 제보가 뜸한 서버라 실제 진행도와 다를 수 있어요. 게임 내 /uberdiablo 명령으로 확인하세요.';
+        '일 전입니다. 제보가 뜸한 서버라 실제 진행도와 다를 수 있어요. 게임에 접속해 있으면 단계 상승 시 공포 메시지가 화면에 직접 표시됩니다.';
       $('stale').classList.add('on');
     } else $('stale').classList.remove('on');
   } else $('reported').textContent = '정보 없음';

@@ -34,9 +34,9 @@ LADDER = os.environ.get("LADDER", "2").strip() or "2"    # 1=래더 2=스탠다�
 HC     = os.environ.get("HC", "2").strip() or "2"        # 1=하드코어 2=소프트코어
 VER    = os.environ.get("VER", "1").strip() or "1"       # 1=LoD 2=RotW(워록의 지배)
 
-ALERT_MIN_STAGE = int(os.environ.get("ALERT_MIN_STAGE", "3") or 3)  # 이 단계부터 메일
+ALERT_MIN_STAGE = int(os.environ.get("ALERT_MIN_STAGE", "2") or 2)  # 이 단계부터 메일
 NOTIFY_RESET    = (os.environ.get("NOTIFY_RESET", "1") or "1") != "0"
-RESET_FROM      = 4          # 이 단계 이상에서 떨어지면 "리셋 감지"로 간주
+RESET_FROM      = int(os.environ.get("RESET_MIN_STAGE", "2") or 2)  # 이 단계 이상에서 떨어지면 "소환 추정/리셋"
 STALE_HOURS     = 72         # 마지막 제보가 이보다 오래되면 경고 문구 추가
 
 STATE_FILE = os.environ.get("STATE_FILE", "state.json")
@@ -161,15 +161,24 @@ def fetch_d2runewizard():
 
 
 def get_progress():
+    """모든 데이터 소스를 다 조회해서 '가장 높은 진행도'를 채택한다.
+    (어느 한 곳에만 보고가 올라와도 놓치지 않기 위함)
+    반환: (progress, reported_ts, 채택된 source, {source: progress, ...})"""
     if MOCK:  # 테스트 모드
-        return int(MOCK), int(datetime.now(tz=KST).timestamp()), "mock(테스트)"
-    errors = []
+        p = int(MOCK)
+        return p, int(datetime.now(tz=KST).timestamp()), "mock(테스트)", {"mock(테스트)": p}
+    per, errors, best = {}, [], None
     for fn in (fetch_diablo2io, fetch_d2runewizard):
         try:
-            return fn()
-        except Exception as e:  # noqa: BLE001 - 소스별 실패는 폴백으로 처리
+            p, ts, name = fn()
+            per[name] = p
+            if best is None or (p, ts or 0) > (best[0], best[1] or 0):
+                best = (p, ts, name)
+        except Exception as e:  # noqa: BLE001 - 소스별 실패는 다른 소스로 커버
             errors.append(f"{fn.__name__}: {e}")
-    raise RuntimeError("모든 데이터 소스 실패:\n  " + "\n  ".join(errors))
+    if best is None:
+        raise RuntimeError("모든 데이터 소스 실패:\n  " + "\n  ".join(errors))
+    return best[0], best[1], best[2], per
 
 
 # ──────────────────────────────────────────────
@@ -206,7 +215,7 @@ def fmt_reported(ts) -> str:
     return dt.strftime("%Y-%m-%d %H:%M KST") + f" ({ago})"
 
 
-def build_body(kind: str, cur: int, prev, ts, source: str) -> str:
+def build_body(kind: str, cur: int, prev, ts, source: str, per=None) -> str:
     en, kr = STAGES.get(cur, ("?", "?"))
     lines = []
     lines.append("우버 디아블로(디아블로 클론) 진행도 알림")
@@ -218,22 +227,25 @@ def build_body(kind: str, cur: int, prev, ts, source: str) -> str:
         lines.append(f"진행도  : {cur}/6")
     lines.append(f"단계    : {en}")
     lines.append(f"          ({kr})")
-    lines.append(f"제보    : {fmt_reported(ts)}   [출처: {source}]")
+    lines.append(f"제보    : {fmt_reported(ts)}   [채택 출처: {source}]")
+    if per and len(per) > 1:
+        lines.append("출처별  : " + " · ".join(f"{k} {v}/6" for k, v in per.items()))
 
     if ts:
         age_h = (datetime.now(tz=KST) - datetime.fromtimestamp(int(ts), tz=KST)).total_seconds() / 3600
         if age_h > STALE_HOURS:
             lines.append("")
             lines.append(f"⚠ 마지막 제보가 {int(age_h // 24)}일 전입니다. 제보가 뜸한 서버라")
-            lines.append("  실제 진행도와 다를 수 있으니 게임 내 /uberdiablo 명령으로 확인하세요.")
+            lines.append("  실제 진행도와 다를 수 있습니다. (게임에 접속해 있으면 단계 상승 시")
+            lines.append("  공포 메시지가 화면에 직접 표시됩니다)")
 
     extra = []
     if kind == "spawn":
         extra = ["🔥 소환되었습니다! 지금 접속해 있던 헬 난이도 게임에서",
                  "   슈퍼 유니크 몬스터(엘드리치, 쉔크, 핀들 등)가 디아 클론으로 대체됩니다."]
     elif kind == "reset":
-        extra = ["진행도가 리셋되었습니다. 지난 확인 이후(최대 1시간 사이)에",
-                 "소환→처치가 이미 끝났을 가능성이 큽니다."]
+        extra = ["진행도가 내려갔습니다. 지난 확인 사이(폴링 간격 사이)에",
+                 "소환→처치가 이미 끝났거나, 잘못된 제보가 정정됐을 수 있습니다."]
     elif kind == "test":
         extra = ["✅ 테스트 메일입니다. 설정이 정상적으로 완료되었습니다!"]
     if extra:
@@ -307,7 +319,7 @@ def send_discord(text: str) -> None:
 # ──────────────────────────────────────────────
 # 상태 웹페이지(GitHub Pages) 데이터 갱신
 # ──────────────────────────────────────────────
-def update_site(cur: int, prev, ts, source: str, changed: bool) -> None:
+def update_site(cur: int, prev, ts, source: str, changed: bool, per=None) -> None:
     """docs/status.json(현재 상태)과 docs/history.json(변동 기록)을 갱신한다.
     docs/index.html 이 이 두 파일을 읽어 화면에 표시한다."""
     try:
@@ -326,6 +338,7 @@ def update_site(cur: int, prev, ts, source: str, changed: bool) -> None:
             "reported_ts": ts,
             "checked": now_iso,
             "source": source,
+            "sources": per or {},
             "alert_min_stage": ALERT_MIN_STAGE,
         }
         with open(os.path.join(SITE_DIR, "status.json"), "w", encoding="utf-8") as f:
@@ -359,20 +372,21 @@ def main() -> None:
     tag = f"[우버디아] {REGION_KR.get(REGION, REGION)} {LADDER_KR.get(LADDER, LADDER)}"
 
     if FORCE_TEST:
-        cur, ts, src = 3, int(datetime.now(tz=KST).timestamp()), "테스트"
+        cur, ts, src, per = 3, int(datetime.now(tz=KST).timestamp()), "테스트", None
         fetched = False
         try:
-            cur, ts, src = get_progress()
+            cur, ts, src, per = get_progress()
             fetched = True
         except Exception as e:  # noqa: BLE001 - 테스트 메일은 조회 실패해도 발송
             print("[안내] 현재 진행도 조회 실패, 예시 값으로 테스트 메일을 보냅니다:", e)
-        send_email(f"{tag} 테스트 메일 ({cur}/6)", build_body("test", cur, None, ts, src))
+        send_email(f"{tag} 테스트 메일 ({cur}/6)", build_body("test", cur, None, ts, src, per))
         if fetched:  # 실제 데이터를 가져왔다면 상태 페이지도 바로 채워준다
-            update_site(cur, None, ts, src, changed=False)
+            update_site(cur, None, ts, src, changed=False, per=per)
         return
 
-    cur, ts, source = get_progress()
-    print(f"[조회] {server_label()} → {cur}/6  (출처 {source}, 제보 {fmt_reported(ts)})")
+    cur, ts, source, per = get_progress()
+    per_txt = " · ".join(f"{k} {v}/6" for k, v in (per or {}).items())
+    print(f"[조회] {server_label()} → {cur}/6  (채택 {source}, 제보 {fmt_reported(ts)}) [{per_txt}]")
 
     st = load_state()
     same_server = st.get("key") == state_key()
@@ -395,12 +409,12 @@ def main() -> None:
     elif kind == "rise":
         subject = f"{tag} 진행도 {cur}/6 {'(' + str(prev) + '/6 → 상승)' if prev is not None else ''}".strip()
     elif kind == "reset":
-        subject = f"{tag} 리셋 감지 ({prev}/6 → {cur}/6) — 그 사이 소환됐을 수 있음"
+        subject = f"{tag} 진행도 하락 ({prev}/6 → {cur}/6) — 그 사이 소환됐을 수 있음"
     else:
         subject = None
 
     if subject:
-        body = build_body(kind, cur, prev, ts, source)
+        body = build_body(kind, cur, prev, ts, source, per)
         send_email(subject, body)
         send_discord(f"**{subject}**\n{server_label()} — {STAGES[cur][0]}\n{TRACKER_URL}")
     else:
@@ -423,7 +437,7 @@ def main() -> None:
         "heartbeat": now_iso if hb_old else hb,
         "source": source,
     })
-    update_site(cur, prev, ts, source, changed=(prev is None or cur != prev))
+    update_site(cur, prev, ts, source, changed=(prev is None or cur != prev), per=per)
 
 
 if __name__ == "__main__":
