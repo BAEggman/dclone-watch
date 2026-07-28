@@ -20,7 +20,7 @@ GH_WORKFLOW = "dclone-watch.yml"     # 기동할 워크플로 파일명
 
 [[kv_namespaces]]
 binding = "STATE"
-id = "KV_ID_여기에_입력"   # `npx wrangler kv namespace create STATE` 실행 후 나온 id로 교체
+id = "e9200f5fa6044e42a5b85caaf147f4b7"   # KV 네임스페이스 STATE (대시보드에서 생성)
 
 # 시크릿 (파일에 적지 않음):
 #   GH_TOKEN         — GitHub PAT(repo+workflow) : 워크플로 원격 기동용 (필수)
