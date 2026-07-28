@@ -1,9 +1,13 @@
 /**
  * dclone-fast — 우버 디아블로 고속 감시 차선 (Cloudflare Worker)
  *
- * 역할: 2분마다 diablo2.io 트래커(d2emu 자동 감지 데이터가 반영됨)를 확인하고,
- *       진행도가 변하면 ① GitHub 워크플로를 원격 기동해 이메일 차선을 즉시 돌리고
+ * 역할: 2분마다 우버디아 진행도를 확인하고, 변동 시
+ *       ① GitHub 워크플로를 원격 기동해 이메일 차선을 즉시 돌리고
  *       ② (선택) 디스코드 웹후크로 푸시 알림을 보낸다.
+ *
+ * 데이터 소스 (이중화):
+ *  1순위 d2emu.com — 게임 클라이언트 상주 자동 감지. 유저 제보가 없어도 잡힘.
+ *  2순위 diablo2.io — 유저 제보 기반. d2emu 장애 시 폴백.
  *
  * 필요한 것:
  *  - KV 네임스페이스 바인딩: STATE  (wrangler.toml 참고)
@@ -49,7 +53,54 @@ function kstNow() {
   }).format(new Date()) + " KST";
 }
 
+const D2EMU_URL = "https://d2emu.com/dclone/dclone.json";
+
+// d2emu JSON의 키 이름 조립: 예) 아시아·논래더·소프트코어·RotW → krNonLadderRotw
+function d2emuKey(c) {
+  const reg = { "1": "us", "2": "eu", "3": "kr" }[c.region] || "kr";
+  const lad = c.ladder === "1" ? "Ladder" : "NonLadder";
+  const hc = c.hc === "1" ? "Hardcore" : "";
+  const ver = c.ver === "2" ? "Rotw" : "";
+  return reg + lad + hc + ver;
+}
+
+// 1순위: d2emu — 게임 내 상주 클라이언트가 자동 감지 (제보 불필요)
+async function pollD2emu(env) {
+  const c = cfg(env);
+  const resp = await fetch(D2EMU_URL, {
+    headers: {
+      "User-Agent": "dclone-watch (personal low-frequency monitor; github.com/BAEggman/dclone-watch)",
+      "Accept": "application/json",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!resp.ok) throw new Error(`d2emu HTTP ${resp.status}`);
+  const data = await resp.json();
+  const key = d2emuKey(c);
+  const entry = data[key];
+  if (!entry || typeof entry.status !== "number") throw new Error(`d2emu 응답에 ${key} 없음`);
+  return {
+    progress: entry.status + 1, // d2emu는 0부터 시작 (0 = 1/6 단계)
+    reported_ts: entry.updated_at || null,
+    last_walk_ts: entry.last_walked_utc || null,
+    server: label(c),
+    checked: new Date().toISOString(),
+    source: "d2emu(자동감지)",
+  };
+}
+
+// d2emu 우선, 실패하면 diablo2.io 제보 데이터로 폴백
 async function poll(env) {
+  try {
+    return await pollD2emu(env);
+  } catch (e) {
+    console.log("d2emu 실패 → diablo2.io 폴백:", e.message);
+    return await pollDiablo2io(env);
+  }
+}
+
+// 2순위: diablo2.io — 유저 제보 기반
+async function pollDiablo2io(env) {
   const c = cfg(env);
   const url = `https://diablo2.io/dclone_api.php?region=${c.region}&ladder=${c.ladder}&hc=${c.hc}&ver=${c.ver}`;
   const resp = await fetch(url, {
@@ -71,6 +122,7 @@ async function poll(env) {
     reported_ts: row.timestamped ? parseInt(row.timestamped, 10) : null,
     server: label(c),
     checked: new Date().toISOString(),
+    source: "diablo2.io(제보)",
   };
 }
 
@@ -142,7 +194,7 @@ async function check(env) {
     msg = `**[우버디아] 진행도 하락 ${q}/6 → ${p}/6** — ${cur.server}\n그 사이 소환→처치가 있었을 수 있습니다.`;
   }
 
-  console.log("조회 완료:", p + "/6", "(이전:", (q === null ? "없음" : q + "/6") + ")");
+  console.log("조회 완료[" + (cur.source || "?") + "]:", p + "/6", "(이전:", (q === null ? "없음" : q + "/6") + ")");
 
   if (q !== p) {
     // 진행도 변동(또는 첫 실행) → 이메일 차선(GitHub Actions)을 즉시 기동
@@ -167,6 +219,15 @@ export default {
   async fetch(request, env) {
     try {
       const u = new URL(request.url);
+      if (u.searchParams.get("src") === "1") {
+        // 두 소스를 각각 조회해 상태를 나란히 보여준다 (이중화 점검용)
+        const out = {};
+        try { out.d2emu = await pollD2emu(env); } catch (e) { out.d2emu = { error: String(e) }; }
+        try { out.diablo2io = await pollDiablo2io(env); } catch (e) { out.diablo2io = { error: String(e) }; }
+        return new Response(JSON.stringify(out, null, 2), {
+          headers: { "content-type": "application/json; charset=utf-8" },
+        });
+      }
       if (u.searchParams.get("selftest") === "1") {
         const ok = await triggerGitHub(env, "selftest(수동 검증)");
         return new Response(
@@ -181,8 +242,8 @@ export default {
         message_en: (STAGES[cur.progress] || ["?"])[0],
         message_kr: (STAGES[cur.progress] || ["", "?"])[1],
         saved_state: raw ? JSON.parse(raw) : null,
-        note: "이 워커는 2분마다 자동 확인하며, 변동 시 디스코드로 알립니다.",
-        credit: "Data courtesy of diablo2.io",
+        note: "이 워커는 2분마다 자동 확인(d2emu 자동감지 우선, diablo2.io 폴백)하며, 변동 시 이메일 차선을 즉시 기동합니다. ?src=1 로 소스별 상태 비교.",
+        credit: "Data courtesy of d2emu.com & diablo2.io",
       };
       return new Response(JSON.stringify(body, null, 2), {
         headers: { "content-type": "application/json; charset=utf-8" },
