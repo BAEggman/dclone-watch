@@ -4,24 +4,40 @@ main = "worker.js"
 compatibility_date = "2026-01-01"
 
 [triggers]
-# 2분마다 확인. 커뮤니티 봇들은 60초 주기도 쓰지만, 데이터 제공처 예의상 2분 권장.
-# 더 빠르게 하려면 "* * * * *" (1분)으로 변경 가능. 그보다 짧게는 금지.
+# 2분마다 확인. 데이터 제공처 예의상 2분 권장. 1분("* * * * *")까지는 가능, 그보다 짧게는 금지.
 crons = ["*/2 * * * *"]
 
 [vars]
-REGION = "3"            # 1=아메리카 2=유럽 3=아시아
-LADDER = "2"            # 1=래더 2=스탠다드(논래더)
-HC = "2"                # 1=하드코어 2=소프트코어
-VER = "2"               # 1=LoD 2=RotW — 기존 이메일 차선 운영값(RotW)과 일치
-ALERT_MIN_STAGE = "3"   # 이 단계부터 디스코드 알림 — 기존 운영값과 일치
+# ── 감시 대상 (쉼표로 여러 개) : region:ladder:hc:ver ──
+#   region 1=아메리카 2=유럽 3=아시아
+#   ladder 1=래더    2=스탠다드(논래더)
+#   hc     1=하드코어 2=소프트코어
+#   ver    1=LoD     2=RotW
+TARGETS = "3:1:2:2,3:2:2:2"   # 아시아 래더 RotW + 아시아 논래더 RotW
+
+ALERT_MIN_STAGE = "3"   # 이 단계부터 알림 — 기존 운영값과 일치
 RESET_MIN_STAGE = "2"   # 이 단계 이상에서 하락하면 '소환 추정' 알림
-GH_REPO = "BAEggman/dclone-watch"    # 변동 시 이 저장소의 워크플로를 원격 기동 (이메일 차선 즉시 가동)
-GH_WORKFLOW = "dclone-watch.yml"     # 기동할 워크플로 파일명
+
+GH_REPO = "BAEggman/dclone-watch"    # 변동 시 이 저장소의 워크플로를 원격 기동 (이메일 차선)
+GH_WORKFLOW = "dclone-watch.yml"
+
+# ── 카카오톡 ──
+KAKAO_REST_KEY = ""                                   # 카카오 앱의 REST API 키
+KAKAO_REDIRECT_URI = "https://dclone-fast.entertain456842.workers.dev/kakao/callback"
+
+# 예전 단일 대상 변수(REGION/LADDER/HC/VER)는 TARGETS가 없을 때만 쓰입니다.
+# TARGETS를 넣었으므로 지워도 되지만, 남겨두면 v3 KV 상태 승계에 쓰입니다.
+REGION = "3"
+LADDER = "2"
+HC = "2"
+VER = "2"
 
 [[kv_namespaces]]
 binding = "STATE"
-id = "e9200f5fa6044e42a5b85caaf147f4b7"   # KV 네임스페이스 STATE (대시보드에서 생성)
+id = "e9200f5fa6044e42a5b85caaf147f4b7"   # KV 네임스페이스 STATE
 
-# 시크릿 (파일에 적지 않음):
-#   GH_TOKEN         — GitHub PAT(repo+workflow) : 워크플로 원격 기동용 (필수)
-#   DISCORD_WEBHOOK  — 디스코드 즉시 푸시용 (선택)
+# 시크릿 (파일에 적지 않음 — 대시보드 Settings > Variables에서 Encrypt):
+#   GH_TOKEN             — GitHub PAT(repo+workflow) : 워크플로 원격 기동용 (필수)
+#   KAKAO_JOIN_CODE      — 길드원 등록 링크의 초대 코드 (카톡 쓸 때 필수)
+#   KAKAO_CLIENT_SECRET  — 카카오 앱에서 Client Secret을 '사용함'으로 켠 경우만
+#   DISCORD_WEBHOOK      — 디스코드 즉시 푸시용 (선택)
