@@ -4,14 +4,14 @@
   "ladder": "스탠다드(논래더)",
   "core": "소프트코어",
   "ver": "RotW",
-  "progress": 1,
-  "message_en": "Terror gazes upon Sanctuary",
-  "message_kr": "공포가 성역을 응시합니다",
-  "reported_ts": 1789315546,
-  "checked": "2026-09-19T08:59:21+09:00",
+  "progress": 2,
+  "message_en": "Terror approaches Sanctuary",
+  "message_kr": "공포가 성역으로 접근합니다",
+  "reported_ts": 1789777570,
+  "checked": "2026-09-19T09:28:15+09:00",
   "source": "diablo2.io",
   "sources": {
-    "diablo2.io": 1
+    "diablo2.io": 2
   },
   "alert_min_stage": 3
 }
